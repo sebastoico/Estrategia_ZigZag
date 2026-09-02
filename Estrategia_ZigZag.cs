@@ -74,16 +74,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (CurrentBar < BarsRequiredToTrade)
 				return;
-			if (!EstaDentroDeVentanaDeDibujo())
+			if (!EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
 				return;
 
 			DibujarUltimoPivote();
 		}
 
-		private bool EstaDentroDeVentanaDeDibujo()
+		private bool EstaDentroDeVentanaDeDibujo(TimeSpan horaActual)
 		{
-			TimeSpan horaActual = Time[0].TimeOfDay;
-
 			if (HoraInicioDibujo <= HoraFinDibujo)
 				return horaActual >= HoraInicioDibujo && horaActual <= HoraFinDibujo;
 
@@ -94,6 +92,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			int barrasDesdeMaximo = zigZag.HighBar(0, 1, CurrentBar);
 			int barrasDesdeMinimo = zigZag.LowBar(0, 1, CurrentBar);
+
+            if (!EstaDentroDeVentanaDeDibujo(Time[Math.Max(barrasDesdeMaximo, barrasDesdeMinimo)].TimeOfDay))
+				return;
 
 			// El pivote mas reciente sigue en formacion; el anterior es el confirmado.
 			if (barrasDesdeMaximo < 0 || barrasDesdeMinimo < 0)
