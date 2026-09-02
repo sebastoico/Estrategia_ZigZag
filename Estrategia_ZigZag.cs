@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Windows.Media;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.DrawingTools;
@@ -13,6 +14,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private ZigZag zigZag;
 		private readonly HashSet<int> pivotesDibujados = new HashSet<int>();
 		private readonly List<AreaPivote> areasPivote = new List<AreaPivote>();
+
+		[NinjaScriptProperty]
+		[Display(Name = "Hora inicio dibujo", Order = 1, GroupName = "Parámetros")]
+		public TimeSpan HoraInicioDibujo { get; set; }
+
+		[NinjaScriptProperty]
+		[Display(Name = "Hora fin dibujo", Order = 2, GroupName = "Parámetros")]
+		public TimeSpan HoraFinDibujo { get; set; }
 
 		private class AreaPivote
 		{
@@ -50,6 +59,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				RealtimeErrorHandling = RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling = StopTargetHandling.PerEntryExecution;
 				BarsRequiredToTrade = 20;
+				HoraInicioDibujo = new TimeSpan(8, 30, 0);
+				HoraFinDibujo = new TimeSpan(16, 0, 0);
 
 			}
 			else if (State == State.DataLoaded)
@@ -63,8 +74,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (CurrentBar < BarsRequiredToTrade)
 				return;
+			if (!EstaDentroDeVentanaDeDibujo())
+				return;
 
 			DibujarUltimoPivote();
+		}
+
+		private bool EstaDentroDeVentanaDeDibujo()
+		{
+			TimeSpan horaActual = Time[0].TimeOfDay;
+
+			if (HoraInicioDibujo <= HoraFinDibujo)
+				return horaActual >= HoraInicioDibujo && horaActual <= HoraFinDibujo;
+
+			return horaActual >= HoraInicioDibujo || horaActual <= HoraFinDibujo;
 		}
 
 		private void DibujarUltimoPivote()
