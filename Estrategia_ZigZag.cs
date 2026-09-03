@@ -175,7 +175,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int barrasIniciales = CurrentBar - area.IndiceVelaInicial;
 			int barrasFinales = CurrentBar - area.IndiceVelaFinal;
 			string etiqueta = (area.EsPivoteAlcista ? "PivoteAlcista_" : "PivoteBajista_") + area.IndicePivote;
-			Brush color = area.EsPivoteAlcista ? Brushes.IndianRed : Brushes.LimeGreen;
+			Brush color = area.EsPivoteAlcista ? Brushes.LimeGreen : Brushes.IndianRed;
 
 			Draw.Rectangle(
 				this,
