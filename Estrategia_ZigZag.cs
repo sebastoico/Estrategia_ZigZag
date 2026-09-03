@@ -103,11 +103,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int barrasDesdeMaximo = zigZag.HighBar(0, 1, CurrentBar);
 			int barrasDesdeMinimo = zigZag.LowBar(0, 1, CurrentBar);
 
-            if (!EstaDentroDeVentanaDeDibujo(Time[Math.Max(barrasDesdeMaximo, barrasDesdeMinimo)].TimeOfDay))
-				return;
-
 			// El pivote mas reciente sigue en formacion; el anterior es el confirmado.
 			if (barrasDesdeMaximo < 0 || barrasDesdeMinimo < 0)
+				return;
+			if (!EstaDentroDeVentanaDeDibujo(Time[Math.Max(barrasDesdeMaximo, barrasDesdeMinimo)].TimeOfDay))
 				return;
 
 			if (barrasDesdeMaximo > barrasDesdeMinimo)
@@ -126,6 +125,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				? Math.Max(Open[barrasAgo], Close[barrasAgo])
 				: Math.Min(Open[barrasAgo], Close[barrasAgo]);
 			double precioExtremo = esMaximo ? High[barrasAgo] : Low[barrasAgo];
+			AreaPivote areaAnterior = areasPivote.Find(area =>
+				precioCuerpo >= area.PrecioInferior &&
+				precioCuerpo <= area.PrecioSuperior);
+			if (areaAnterior != null)
+			{
+				areaAnterior.IndiceVelaFinal = Math.Max(areaAnterior.IndiceVelaFinal, indicePivote + 1);
+				RedibujarAreaPivote(areaAnterior);
+				return;
+			}
+
 			areasPivote.Add(new AreaPivote
 			{
 				IndicePivote = indicePivote,
@@ -146,6 +155,26 @@ namespace NinjaTrader.NinjaScript.Strategies
 				precioExtremo,
 				Math.Max(0, barrasAgo - 1),
 				precioCuerpo,
+				color,
+				color,
+				20);
+		}
+
+		private void RedibujarAreaPivote(AreaPivote area)
+		{
+			int barrasIniciales = CurrentBar - area.IndiceVelaInicial;
+			int barrasFinales = CurrentBar - area.IndiceVelaFinal;
+			string etiqueta = (area.EsPivoteAlcista ? "PivoteAlcista_" : "PivoteBajista_") + area.IndicePivote;
+			Brush color = area.EsPivoteAlcista ? Brushes.IndianRed : Brushes.LimeGreen;
+
+			Draw.Rectangle(
+				this,
+				etiqueta,
+				true,
+				barrasIniciales,
+				area.PrecioSuperior,
+				Math.Max(0, barrasFinales),
+				area.PrecioInferior,
 				color,
 				color,
 				20);
