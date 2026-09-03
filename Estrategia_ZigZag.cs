@@ -14,6 +14,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private ZigZag zigZag;
 		private readonly HashSet<int> pivotesDibujados = new HashSet<int>();
 		private readonly List<AreaPivote> areasPivote = new List<AreaPivote>();
+		private DateTime ultimaFechaDeDibujo;
 
 		[NinjaScriptProperty]
 		[Display(Name = "Hora inicio dibujo", Order = 1, GroupName = "Parámetros")]
@@ -72,6 +73,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
+			if (CurrentBar == 0)
+				ultimaFechaDeDibujo = Time[0].Date;
+			else if (Time[0].Date != ultimaFechaDeDibujo.Date)
+			{
+				pivotesDibujados.Clear();
+				areasPivote.Clear();
+				ultimaFechaDeDibujo = Time[0].Date;
+			}
+
 			if (CurrentBar < BarsRequiredToTrade)
 				return;
 			if (!EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
