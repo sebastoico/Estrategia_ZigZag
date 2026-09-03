@@ -135,7 +135,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				bool nuevaAreaDentroDeAnterior = precioSuperior <= area.PrecioSuperior &&
 					precioInferior >= area.PrecioInferior;
 				if (nuevaAreaDentroDeAnterior)
+				{
+					area.IndiceVelaFinal = Math.Max(area.IndiceVelaFinal, indicePivote + 1);
+					RedibujarAreaPivote(area);
 					return;
+				}
 
 				bool nuevaAreaContieneAnterior = precioSuperior >= area.PrecioSuperior &&
 					precioInferior <= area.PrecioInferior;
@@ -153,6 +157,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (areaAnterior != null)
 			{
 				areaAnterior.IndiceVelaFinal = Math.Max(areaAnterior.IndiceVelaFinal, indicePivote + 1);
+				bool cuerpoDentroDelArea = precioCuerpo >= areaAnterior.PrecioInferior &&
+					precioCuerpo <= areaAnterior.PrecioSuperior;
+				if (cuerpoDentroDelArea && areaAnterior.EsPivoteAlcista == esMaximo)
+				{
+					if (esMaximo && precioExtremo > areaAnterior.PrecioSuperior)
+						areaAnterior.PrecioSuperior = precioExtremo;
+					else if (!esMaximo && precioExtremo < areaAnterior.PrecioInferior)
+						areaAnterior.PrecioInferior = precioExtremo;
+				}
 				RedibujarAreaPivote(areaAnterior);
 				return;
 			}
