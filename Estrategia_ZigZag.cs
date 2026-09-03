@@ -126,8 +126,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				: Math.Min(Open[barrasAgo], Close[barrasAgo]);
 			double precioExtremo = esMaximo ? High[barrasAgo] : Low[barrasAgo];
 			AreaPivote areaAnterior = areasPivote.Find(area =>
-				precioCuerpo >= area.PrecioInferior &&
-				precioCuerpo <= area.PrecioSuperior);
+				(precioCuerpo >= area.PrecioInferior && precioCuerpo <= area.PrecioSuperior) ||
+				(precioExtremo >= area.PrecioInferior && precioExtremo <= area.PrecioSuperior));
 			if (areaAnterior != null)
 			{
 				areaAnterior.IndiceVelaFinal = Math.Max(areaAnterior.IndiceVelaFinal, indicePivote + 1);
