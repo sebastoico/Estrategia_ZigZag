@@ -125,7 +125,29 @@ namespace NinjaTrader.NinjaScript.Strategies
 				? Math.Max(Open[barrasAgo], Close[barrasAgo])
 				: Math.Min(Open[barrasAgo], Close[barrasAgo]);
 			double precioExtremo = esMaximo ? High[barrasAgo] : Low[barrasAgo];
-			AreaPivote areaAnterior = areasPivote.Find(area =>
+			double precioSuperior = esMaximo ? precioExtremo : precioCuerpo;
+			double precioInferior = esMaximo ? precioCuerpo : precioExtremo;
+			int indiceVelaInicial = indicePivote - 1;
+
+			for (int indiceArea = areasPivote.Count - 1; indiceArea >= 0; indiceArea--)
+			{
+				AreaPivote area = areasPivote[indiceArea];
+				bool nuevaAreaDentroDeAnterior = precioSuperior <= area.PrecioSuperior &&
+					precioInferior >= area.PrecioInferior;
+				if (nuevaAreaDentroDeAnterior)
+					return;
+
+				bool nuevaAreaContieneAnterior = precioSuperior >= area.PrecioSuperior &&
+					precioInferior <= area.PrecioInferior;
+				if (nuevaAreaContieneAnterior)
+				{
+					indiceVelaInicial = Math.Min(indiceVelaInicial, area.IndiceVelaInicial);
+					RemoveDrawObject((area.EsPivoteAlcista ? "PivoteAlcista_" : "PivoteBajista_") + area.IndicePivote);
+					areasPivote.RemoveAt(indiceArea);
+				}
+			}
+
+			AreaPivote areaAnterior = areasPivote.FindLast(area =>
 				(precioCuerpo >= area.PrecioInferior && precioCuerpo <= area.PrecioSuperior) ||
 				(precioExtremo >= area.PrecioInferior && precioExtremo <= area.PrecioSuperior));
 			if (areaAnterior != null)
@@ -135,29 +157,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 				return;
 			}
 
-			areasPivote.Add(new AreaPivote
+			AreaPivote areaNueva = new AreaPivote
 			{
 				IndicePivote = indicePivote,
-				IndiceVelaInicial = indicePivote - 1,
+				IndiceVelaInicial = indiceVelaInicial,
 				IndiceVelaFinal = indicePivote + 1,
-				PrecioSuperior = esMaximo ? precioExtremo : precioCuerpo,
-				PrecioInferior = esMaximo ? precioCuerpo : precioExtremo,
+				PrecioSuperior = precioSuperior,
+				PrecioInferior = precioInferior,
 				EsPivoteAlcista = esMaximo
-			});
-			Brush color = esMaximo ? Brushes.IndianRed : Brushes.LimeGreen;
-			string etiqueta = (esMaximo ? "PivoteAlcista_" : "PivoteBajista_") + indicePivote;
-
-			Draw.Rectangle(
-				this,
-				etiqueta,
-				true,
-				barrasAgo + 1,
-				precioExtremo,
-				Math.Max(0, barrasAgo - 1),
-				precioCuerpo,
-				color,
-				color,
-				20);
+			};
+			areasPivote.Add(areaNueva);
+			RedibujarAreaPivote(areaNueva);
 		}
 
 		private void RedibujarAreaPivote(AreaPivote area)
