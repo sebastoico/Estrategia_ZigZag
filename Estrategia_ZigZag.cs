@@ -44,6 +44,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			public double PrecioSuperior; // Límite superior de la zona del pivote.
 			public double PrecioInferior; // Límite inferior de la zona del pivote.
 			public bool EsPivoteAlcista; // Indica si el pivote es máximo (alcista) o mínimo (bajista).
+			public bool VioPivotePorEncima; // Indica si apareció un pivote por encima del área.
+			public bool VioPivotePorDebajo; // Indica si apareció un pivote por debajo del área.
+			public bool EstaInvalidada; // Indica si el área dejó de estar activa.
 		}
 
 		// Este método se ejecuta cada vez que cambia el estado del indicador/estrategia.
@@ -174,6 +177,38 @@ namespace NinjaTrader.NinjaScript.Strategies
 			for (int indiceArea = areasPivote.Count - 1; indiceArea >= 0; indiceArea--)
 			{
 				AreaPivote area = areasPivote[indiceArea];
+				bool pivotePorEncima = precioExtremo > area.PrecioSuperior;
+				bool pivotePorDebajo = precioExtremo < area.PrecioInferior;
+				bool pivoteExtiendeArea =
+					(precioCuerpo >= area.PrecioInferior && precioCuerpo <= area.PrecioSuperior) ||
+					(precioExtremo >= area.PrecioInferior && precioExtremo <= area.PrecioSuperior);
+
+				// Un máximo se invalida con la secuencia arriba y después abajo.
+				// Un mínimo se invalida con la secuencia abajo y después arriba.
+				if (!pivoteExtiendeArea && area.EsPivoteAlcista)
+				{
+					if (pivotePorEncima)
+						area.VioPivotePorEncima = true;
+					else if (pivotePorDebajo && area.VioPivotePorEncima)
+					{
+						area.EstaInvalidada = true;
+						RedibujarAreaPivote(area);
+						areasPivote.RemoveAt(indiceArea);
+						continue;
+					}
+				}
+				else if (!pivoteExtiendeArea)
+				{
+					if (pivotePorDebajo)
+						area.VioPivotePorDebajo = true;
+					else if (pivotePorEncima && area.VioPivotePorDebajo)
+					{
+						area.EstaInvalidada = true;
+						RedibujarAreaPivote(area);
+						areasPivote.RemoveAt(indiceArea);
+						continue;
+					}
+				}
 
 				// Caso 1: la nueva zona queda completamente dentro de un área previa.
 				bool nuevaAreaDentroDeAnterior = precioSuperior <= area.PrecioSuperior &&
@@ -243,7 +278,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int barrasIniciales = CurrentBar - area.IndiceVelaInicial;
 			int barrasFinales = CurrentBar - area.IndiceVelaFinal;
 			string etiqueta = (area.EsPivoteAlcista ? "PivoteAlcista_" : "PivoteBajista_") + area.IndicePivote;
-			Brush color = area.EsPivoteAlcista ? Brushes.LimeGreen : Brushes.IndianRed;
+			Brush color = area.EstaInvalidada
+				? Brushes.Gray
+				: area.EsPivoteAlcista ? Brushes.LimeGreen : Brushes.IndianRed;
 
 			// Draw.Rectangle genera un bloque visual sobre el chart para resaltar la zona del pivote.
 			Draw.Rectangle(
