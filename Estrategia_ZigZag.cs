@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Windows.Media;
+using NinjaTrader.Cbi;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.DrawingTools;
 using NinjaTrader.NinjaScript.Indicators;
@@ -24,6 +25,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		// Fecha del último reinicio de dibujo para limpiar cada día.
 		private DateTime ultimaFechaDeDibujo;
+		private int cantidadAreasDelDia;
+		private double ultimoPivoteMaximo;
+		private double ultimoPivoteMinimo;
+		private double cierreAnterior;
+		private Order ordenEntradaPendiente;
+		private int barraDeEntradaPendiente = -1;
+		private string nombreEntradaPendiente;
+		// Solo se permite una entrada pendiente; esta etiqueta identifica su dibujo para poder retirarlo.
+		private string etiquetaRiskRewardPendiente;
 
 		// Parámetro configurado desde la interfaz del indicador/estrategia.
 		[NinjaScriptProperty]
@@ -34,6 +44,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[NinjaScriptProperty]
 		[Display(Name = "Hora fin dibujo", Order = 2, GroupName = "Parámetros")]
 		public TimeSpan HoraFinDibujo { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(0.1, double.MaxValue)]
+		[Display(Name = "Relación take profit", Order = 3, GroupName = "Parámetros")]
+		public double RelacionTakeProfit { get; set; }
+
+		[NinjaScriptProperty]
+		[Range(1, int.MaxValue)]
+		[Display(Name = "Velas para cancelar orden", Order = 4, GroupName = "Parámetros")]
+		public int VelasParaCancelarOrden { get; set; }
 
 		// Estructura interna que describe el rango de un pivote y su zona visual asociada.
 		private class AreaPivote
@@ -47,6 +67,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			public bool VioPivotePorEncima; // Indica si apareció un pivote por encima del área.
 			public bool VioPivotePorDebajo; // Indica si apareció un pivote por debajo del área.
 			public bool EstaInvalidada; // Indica si el área dejó de estar activa.
+			public bool EsAreaCompra;
+			public bool TieneClasificacion;
+			public int IndiceBarraCreacion;
 		}
 
 		// Este método se ejecuta cada vez que cambia el estado del indicador/estrategia.
@@ -58,6 +81,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				pivotesDibujados.Clear();
 				areasPivote.Clear();
+				cantidadAreasDelDia = 0;
+				ultimoPivoteMaximo = 0;
+				ultimoPivoteMinimo = 0;
+				cierreAnterior = 0;
+				ordenEntradaPendiente = null;
+				barraDeEntradaPendiente = -1;
+				nombreEntradaPendiente = null;
+				etiquetaRiskRewardPendiente = null;
 			}
 			else if (State == State.SetDefaults)
 			{
@@ -85,6 +116,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// Horarios por defecto en los que se permite dibujar zonas de pivote.
 				HoraInicioDibujo = new TimeSpan(8, 30, 0);
 				HoraFinDibujo = new TimeSpan(16, 0, 0);
+				RelacionTakeProfit = 1.0;
+				VelasParaCancelarOrden = 5;
 			}
 			else if (State == State.DataLoaded)
 			{
@@ -105,6 +138,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				pivotesDibujados.Clear();
 				areasPivote.Clear();
+				cantidadAreasDelDia = 0;
+				ultimoPivoteMaximo = 0;
+				ultimoPivoteMinimo = 0;
+				CancelarOrdenPendiente();
 				ultimaFechaDeDibujo = Time[0].Date;
 			}
 
@@ -112,12 +149,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (CurrentBar < BarsRequiredToTrade)
 				return;
 
-			// Si la hora actual no está dentro del rango permitido para dibujar, no hace nada.
-			if (!EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
-				return;
+			// El cruce se evalúa antes de detectar el nuevo pivote para no usar una zona recién extendida.
+			GestionarCrucesDeAreas();
+			GestionarCaducidadDeOrden();
 
-			// Dibuja el último pivote detectado en la barra actual.
-			DibujarUltimoPivote();
+			// La ventana limita la creación de zonas, pero no la caducidad de órdenes pendientes.
+			if (EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
+				DibujarUltimoPivote();
+
+			cierreAnterior = Close[0];
 		}
 
 		// Comprueba si la hora actual cae dentro de la ventana de dibujo indicada.
@@ -172,6 +212,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			double precioSuperior = esMaximo ? precioExtremo : precioCuerpo;
 			double precioInferior = esMaximo ? precioCuerpo : precioExtremo;
 			int indiceVelaInicial = indicePivote - 1;
+			if (esMaximo)
+				ultimoPivoteMaximo = precioExtremo;
+			else
+				ultimoPivoteMinimo = precioExtremo;
 
 			// Recorre todas las áreas existentes para fusionarlas, expandirlas o eliminar superposiciones.
 			for (int indiceArea = areasPivote.Count - 1; indiceArea >= 0; indiceArea--)
@@ -265,10 +309,198 @@ namespace NinjaTrader.NinjaScript.Strategies
 				IndiceVelaFinal = indicePivote + 1,
 				PrecioSuperior = precioSuperior,
 				PrecioInferior = precioInferior,
-				EsPivoteAlcista = esMaximo
+				EsPivoteAlcista = esMaximo,
+				IndiceBarraCreacion = CurrentBar
 			};
+			cantidadAreasDelDia++;
+			if (cantidadAreasDelDia <= 2)
+				areaNueva.EsAreaCompra = esMaximo;
+			else
+				areaNueva.EsAreaCompra = precioInferior > Close[0];
+			areaNueva.TieneClasificacion = cantidadAreasDelDia <= 2 ||
+				precioInferior > Close[0] || precioSuperior < Close[0];
 			areasPivote.Add(areaNueva);
 			RedibujarAreaPivote(areaNueva);
+		}
+
+		private void GestionarCrucesDeAreas()
+		{
+			if (CurrentBar == 0 || cierreAnterior == 0)
+				return;
+
+			for (int indiceArea = areasPivote.Count - 1; indiceArea >= 0; indiceArea--)
+			{
+				AreaPivote area = areasPivote[indiceArea];
+				if (!area.TieneClasificacion || area.IndiceBarraCreacion == CurrentBar)
+					continue;
+
+				bool cruzaCompraAVenta = area.EsAreaCompra && cierreAnterior <= area.PrecioSuperior && Close[0] > area.PrecioSuperior;
+				bool cruzaVentaACompra = !area.EsAreaCompra && cierreAnterior >= area.PrecioInferior && Close[0] < area.PrecioInferior;
+
+				if (cruzaCompraAVenta)
+				{
+					area.EsAreaCompra = false;
+					EnviarOrdenDeCompra();
+				}
+				else if (cruzaVentaACompra)
+				{
+					area.EsAreaCompra = true;
+					EnviarOrdenDeVenta();
+				}
+			}
+		}
+
+		private void EnviarOrdenDeCompra()
+		{
+			double precioStop;
+			// El stop usa el mínimo más reciente que ZigZag todavía tiene pendiente de confirmar.
+			if (nombreEntradaPendiente != null || !ObtenerUltimoPivotePorConfirmar(false, out precioStop))
+				return;
+
+			double precioEntrada = High[0];
+			double riesgo = precioEntrada - precioStop;
+			if (riesgo <= 0)
+				return;
+			double precioTarget = precioEntrada + riesgo * RelacionTakeProfit;
+			// Una zona activa entre la entrada y el target puede bloquear el recorrido del precio.
+			if (TargetAtraviesaZonaActiva(precioEntrada, precioTarget))
+				return;
+
+			string nombre = "Compra_" + CurrentBar;
+			SetStopLoss(nombre, CalculationMode.Price, precioStop, false);
+			SetProfitTarget(nombre, CalculationMode.Price, precioTarget);
+			DibujarRiskReward(nombre, precioEntrada, precioStop);
+			nombreEntradaPendiente = nombre;
+			barraDeEntradaPendiente = CurrentBar;
+			EnterLongStopMarket(0, true, DefaultQuantity, precioEntrada, nombre);
+		}
+
+		private void EnviarOrdenDeVenta()
+		{
+			double precioStop;
+			// El stop usa el máximo más reciente que ZigZag todavía tiene pendiente de confirmar.
+			if (nombreEntradaPendiente != null || !ObtenerUltimoPivotePorConfirmar(true, out precioStop))
+				return;
+
+			double precioEntrada = Low[0];
+			double riesgo = precioStop - precioEntrada;
+			if (riesgo <= 0)
+				return;
+			double precioTarget = precioEntrada - riesgo * RelacionTakeProfit;
+			// Una zona activa entre la entrada y el target puede bloquear el recorrido del precio.
+			if (TargetAtraviesaZonaActiva(precioEntrada, precioTarget))
+				return;
+
+			string nombre = "Venta_" + CurrentBar;
+			SetStopLoss(nombre, CalculationMode.Price, precioStop, false);
+			SetProfitTarget(nombre, CalculationMode.Price, precioTarget);
+			DibujarRiskReward(nombre, precioEntrada, precioStop);
+			nombreEntradaPendiente = nombre;
+			barraDeEntradaPendiente = CurrentBar;
+			EnterShortStopMarket(0, true, DefaultQuantity, precioEntrada, nombre);
+		}
+
+		private bool TargetAtraviesaZonaActiva(double precioEntrada, double precioTarget)
+		{
+			// Se comprueba la intersección con el segmento completo, no solo con el precio final.
+			double recorridoSuperior = Math.Max(precioEntrada, precioTarget);
+			double recorridoInferior = Math.Min(precioEntrada, precioTarget);
+
+			foreach (AreaPivote area in areasPivote)
+			{
+				if (area.EstaInvalidada || !area.TieneClasificacion)
+					continue;
+
+				bool zonaEnRecorrido = area.PrecioInferior <= recorridoSuperior &&
+					area.PrecioSuperior >= recorridoInferior;
+				if (zonaEnRecorrido)
+					return true;
+			}
+
+			return false;
+		}
+
+		private bool ObtenerUltimoPivotePorConfirmar(bool esMaximo, out double precioStop)
+		{
+			// HighBar/LowBar devuelve la distancia al extremo actual del ZigZag; el margen de un tick
+			// coloca el stop detrás del pivote y evita dejarlo exactamente sobre el extremo.
+			int barrasAgo = esMaximo
+				? zigZag.HighBar(0, 1, CurrentBar)
+				: zigZag.LowBar(0, 1, CurrentBar);
+			if (barrasAgo < 0)
+			{
+				precioStop = 0;
+				return false;
+			}
+
+			double precioPivote = esMaximo ? High[barrasAgo] : Low[barrasAgo];
+			precioStop = esMaximo
+				? Instrument.MasterInstrument.RoundToTickSize(precioPivote + TickSize)
+				: Instrument.MasterInstrument.RoundToTickSize(precioPivote - TickSize);
+			return precioStop > 0;
+		}
+
+		private void GestionarCaducidadDeOrden()
+		{
+			// Se usa el nombre de señal y no la referencia Order porque el callback puede llegar después.
+			if (nombreEntradaPendiente != null &&
+				CurrentBar - barraDeEntradaPendiente >= VelasParaCancelarOrden)
+				CancelarOrdenPendiente();
+		}
+
+		private void CancelarOrdenPendiente()
+		{
+			// La cancelación elimina también la representación visual de una orden que no se llenó.
+			if (ordenEntradaPendiente != null &&
+				(ordenEntradaPendiente.OrderState == OrderState.Working || ordenEntradaPendiente.OrderState == OrderState.Accepted ||
+				 ordenEntradaPendiente.OrderState == OrderState.Submitted))
+				CancelOrder(ordenEntradaPendiente);
+			if (etiquetaRiskRewardPendiente != null)
+				RemoveDrawObject(etiquetaRiskRewardPendiente);
+			ordenEntradaPendiente = null;
+			barraDeEntradaPendiente = -1;
+			nombreEntradaPendiente = null;
+			etiquetaRiskRewardPendiente = null;
+		}
+
+		private void DibujarRiskReward(string nombreEntrada, double precioEntrada, double precioStop)
+		{
+			// RiskReward calcula el target a partir del stop y de la relación configurada.
+			etiquetaRiskRewardPendiente = "RiskReward_" + nombreEntrada + "_" + CurrentBar;
+			Draw.RiskReward(
+				this,
+				etiquetaRiskRewardPendiente,
+				false,
+				0,
+				precioEntrada,
+				-VelasParaCancelarOrden,
+				precioStop,
+				RelacionTakeProfit,
+				true,
+				false,
+				string.Empty);
+		}
+
+		protected override void OnOrderUpdate(Order order, double limitPrice, double stopPrice, int quantity, int filled,
+			double averageFillPrice, OrderState orderState, DateTime time, ErrorCode error, string comment)
+		{
+			if (nombreEntradaPendiente == null || order.Name != nombreEntradaPendiente)
+				return;
+
+			if (orderState == OrderState.Submitted || orderState == OrderState.Accepted || orderState == OrderState.Working)
+				ordenEntradaPendiente = order;
+			else if (orderState == OrderState.Filled || orderState == OrderState.Cancelled || orderState == OrderState.Rejected)
+			{
+				ordenEntradaPendiente = null;
+				barraDeEntradaPendiente = -1;
+				nombreEntradaPendiente = null;
+				if (orderState == OrderState.Cancelled || orderState == OrderState.Rejected)
+				{
+					if (etiquetaRiskRewardPendiente != null)
+						RemoveDrawObject(etiquetaRiskRewardPendiente);
+					etiquetaRiskRewardPendiente = null;
+				}
+			}
 		}
 
 		// Dibuja en el gráfico un rectángulo que representa el rango del pivote.
