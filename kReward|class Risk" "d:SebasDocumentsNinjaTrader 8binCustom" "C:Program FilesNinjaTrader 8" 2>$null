@@ -1,154 +1,0 @@
-Estrategia_ZigZag.cs:5: trailing whitespace.
-[32m+[m[32musing NinjaTrader.Cbi;[m[41m[m
-Estrategia_ZigZag.cs:28: trailing whitespace.
-[32m+[m		[32mprivate int cantidadAreasDelDia;[m[41m[m
-Estrategia_ZigZag.cs:29: trailing whitespace.
-[32m+[m		[32mprivate double ultimoPivoteMaximo;[m[41m[m
-Estrategia_ZigZag.cs:30: trailing whitespace.
-[32m+[m		[32mprivate double ultimoPivoteMinimo;[m[41m[m
-Estrategia_ZigZag.cs:31: trailing whitespace.
-[32m+[m		[32mprivate double cierreAnterior;[m[41m[m
-Estrategia_ZigZag.cs:32: trailing whitespace.
-[32m+[m		[32mprivate Order ordenEntradaPendiente;[m[41m[m
-Estrategia_ZigZag.cs:33: trailing whitespace.
-[32m+[m		[32mprivate int barraDeEntradaPendiente = -1;[m[41m[m
-Estrategia_ZigZag.cs:34: trailing whitespace.
-[32m+[m		[32mprivate string nombreEntradaPendiente;[m[41m[m
-Estrategia_ZigZag.cs:46: trailing whitespace.
-[32m+[m		[32m[NinjaScriptProperty][m[41m[m
-Estrategia_ZigZag.cs:47: trailing whitespace.
-[32m+[m		[32m[Range(0.1, double.MaxValue)][m[41m[m
-Estrategia_ZigZag.cs:48: trailing whitespace.
-[32m+[m		[32m[Display(Name = "Relación take profit", Order = 3, GroupName = "Parámetros")][m[41m[m
-Estrategia_ZigZag.cs:49: trailing whitespace.
-[32m+[m		[32mpublic double RelacionTakeProfit { get; set; }[m[41m[m
-Estrategia_ZigZag.cs:50: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:51: trailing whitespace.
-[32m+[m		[32m[NinjaScriptProperty][m[41m[m
-Estrategia_ZigZag.cs:52: trailing whitespace.
-[32m+[m		[32m[Range(1, int.MaxValue)][m[41m[m
-Estrategia_ZigZag.cs:53: trailing whitespace.
-[32m+[m		[32m[Display(Name = "Velas para cancelar orden", Order = 4, GroupName = "Parámetros")][m[41m[m
-Estrategia_ZigZag.cs:54: trailing whitespace.
-[32m+[m		[32mpublic int VelasParaCancelarOrden { get; set; }[m[41m[m
-Estrategia_ZigZag.cs:55: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:68: trailing whitespace.
-[32m+[m			[32mpublic bool EsAreaCompra;[m[41m[m
-Estrategia_ZigZag.cs:69: trailing whitespace.
-[32m+[m			[32mpublic bool TieneClasificacion;[m[41m[m
-Estrategia_ZigZag.cs:70: trailing whitespace.
-[32m+[m			[32mpublic int IndiceBarraCreacion;[m[41m[m
-Estrategia_ZigZag.cs:82: trailing whitespace.
-[32m+[m				[32mcantidadAreasDelDia = 0;[m[41m[m
-Estrategia_ZigZag.cs:83: trailing whitespace.
-[32m+[m				[32multimoPivoteMaximo = 0;[m[41m[m
-Estrategia_ZigZag.cs:84: trailing whitespace.
-[32m+[m				[32multimoPivoteMinimo = 0;[m[41m[m
-Estrategia_ZigZag.cs:85: trailing whitespace.
-[32m+[m				[32mcierreAnterior = 0;[m[41m[m
-Estrategia_ZigZag.cs:86: trailing whitespace.
-[32m+[m				[32mordenEntradaPendiente = null;[m[41m[m
-Estrategia_ZigZag.cs:87: trailing whitespace.
-[32m+[m				[32mbarraDeEntradaPendiente = -1;[m[41m[m
-Estrategia_ZigZag.cs:88: trailing whitespace.
-[32m+[m				[32mnombreEntradaPendiente = null;[m[41m[m
-Estrategia_ZigZag.cs:116: trailing whitespace.
-[32m+[m				[32mRelacionTakeProfit = 1.0;[m[41m[m
-Estrategia_ZigZag.cs:117: trailing whitespace.
-[32m+[m				[32mVelasParaCancelarOrden = 5;[m[41m[m
-Estrategia_ZigZag.cs:138: trailing whitespace.
-[32m+[m				[32mcantidadAreasDelDia = 0;[m[41m[m
-Estrategia_ZigZag.cs:139: trailing whitespace.
-[32m+[m				[32multimoPivoteMaximo = 0;[m[41m[m
-Estrategia_ZigZag.cs:140: trailing whitespace.
-[32m+[m				[32multimoPivoteMinimo = 0;[m[41m[m
-Estrategia_ZigZag.cs:141: trailing whitespace.
-[32m+[m				[32mCancelarOrdenPendiente();[m[41m[m
-Estrategia_ZigZag.cs:149: trailing whitespace.
-[32m+[m			[32m// La ventana limita la creación de zonas, pero no la gestión de entradas ya activas.[m[41m[m
-Estrategia_ZigZag.cs:150: trailing whitespace.
-[32m+[m			[32mif (EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))[m[41m[m
-Estrategia_ZigZag.cs:151: trailing whitespace.
-[32m+[m				[32mDibujarUltimoPivote();[m[41m[m
-Estrategia_ZigZag.cs:152: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:153: trailing whitespace.
-[32m+[m			[32mGestionarCrucesDeAreas();[m[41m[m
-Estrategia_ZigZag.cs:154: trailing whitespace.
-[32m+[m			[32mGestionarCaducidadDeOrden();[m[41m[m
-Estrategia_ZigZag.cs:155: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:156: trailing whitespace.
-[32m+[m			[32mif (Position.MarketPosition != MarketPosition.Flat)[m[41m[m
-Estrategia_ZigZag.cs:157: trailing whitespace.
-[32m+[m				[32mCancelarOrdenPendiente();[m[41m[m
-Estrategia_ZigZag.cs:159: trailing whitespace.
-[32m+[m			[32mcierreAnterior = Close[0];[m[41m[m
-Estrategia_ZigZag.cs:214: trailing whitespace.
-[32m+[m			[32mif (esMaximo)[m[41m[m
-Estrategia_ZigZag.cs:215: trailing whitespace.
-[32m+[m				[32multimoPivoteMaximo = precioExtremo;[m[41m[m
-Estrategia_ZigZag.cs:216: trailing whitespace.
-[32m+[m			[32melse[m[41m[m
-Estrategia_ZigZag.cs:217: trailing whitespace.
-[32m+[m				[32multimoPivoteMinimo = precioExtremo;[m[41m[m
-Estrategia_ZigZag.cs:311: trailing whitespace.
-[32m+[m				[32mEsPivoteAlcista = esMaximo,[m[41m[m
-Estrategia_ZigZag.cs:312: trailing whitespace.
-[32m+[m				[32mIndiceBarraCreacion = CurrentBar[m[41m[m
-Estrategia_ZigZag.cs:314: trailing whitespace.
-[32m+[m			[32mcantidadAreasDelDia++;[m[41m[m
-Estrategia_ZigZag.cs:315: trailing whitespace.
-[32m+[m			[32mif (cantidadAreasDelDia <= 2)[m[41m[m
-Estrategia_ZigZag.cs:316: trailing whitespace.
-[32m+[m				[32mareaNueva.EsAreaCompra = esMaximo;[m[41m[m
-Estrategia_ZigZag.cs:317: trailing whitespace.
-[32m+[m			[32melse[m[41m[m
-Estrategia_ZigZag.cs:318: trailing whitespace.
-[32m+[m				[32mareaNueva.EsAreaCompra = precioInferior > Close[0];[m[41m[m
-Estrategia_ZigZag.cs:319: trailing whitespace.
-[32m+[m			[32mareaNueva.TieneClasificacion = cantidadAreasDelDia <= 2 ||[m[41m[m
-Estrategia_ZigZag.cs:320: trailing whitespace.
-[32m+[m				[32mprecioInferior > Close[0] || precioSuperior < Close[0];[m[41m[m
-Estrategia_ZigZag.cs:325: trailing whitespace.
-[32m+[m		[32mprivate void GestionarCrucesDeAreas()[m[41m[m
-Estrategia_ZigZag.cs:326: trailing whitespace.
-[32m+[m		[32m{[m[41m[m
-Estrategia_ZigZag.cs:327: trailing whitespace.
-[32m+[m			[32mif (CurrentBar == 0 || cierreAnterior == 0)[m[41m[m
-Estrategia_ZigZag.cs:328: trailing whitespace.
-[32m+[m				[32mreturn;[m[41m[m
-Estrategia_ZigZag.cs:329: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:330: trailing whitespace.
-[32m+[m			[32mfor (int indiceArea = areasPivote.Count - 1; indiceArea >= 0; indiceArea--)[m[41m[m
-Estrategia_ZigZag.cs:331: trailing whitespace.
-[32m+[m			[32m{[m[41m[m
-Estrategia_ZigZag.cs:332: trailing whitespace.
-[32m+[m				[32mAreaPivote area = areasPivote[indiceArea];[m[41m[m
-Estrategia_ZigZag.cs:333: trailing whitespace.
-[32m+[m				[32mif (!area.TieneClasificacion || area.IndiceBarraCreacion == CurrentBar)[m[41m[m
-Estrategia_ZigZag.cs:334: trailing whitespace.
-[32m+[m					[32mcontinue;[m[41m[m
-Estrategia_ZigZag.cs:335: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:336: trailing whitespace.
-[32m+[m				[32mbool cruzaCompraAVenta = area.EsAreaCompra && cierreAnterior <= area.PrecioSuperior && Close[0] > area.PrecioSuperior;[m[41m[m
-Estrategia_ZigZag.cs:337: trailing whitespace.
-[32m+[m				[32mbool cruzaVentaACompra = !area.EsAreaCompra && cierreAnterior >= area.PrecioInferior && Close[0] < area.PrecioInferior;[m[41m[m
-Estrategia_ZigZag.cs:338: trailing whitespace.
-[32m+[m[41m[m
-Estrategia_ZigZag.cs:339: trailing whitespace.
-[32m+[m				[32mif (cruzaCompraAVenta)[m[41m[m
-Estrategia_ZigZag.cs:340: trailing whitespace.
-[32m+[m				[32m{[m[41m[m
-Estrategia_ZigZag.cs:341: trailing whitespace.
-[32m+[m					[32marea.EsAreaCompra = false;[m[41m[m
-Estrategia_ZigZag.cs:342: trailing whitespace.
-[32m+[m					[32mEnviarOrdenDeCompra();[m[41m[m
-Estrategia_ZigZag.cs:343: trailing whitespace.
-[32m+[m				[32m}[m[41m[m
-Estrategia_ZigZag.cs:344: trailing whitespace.
-[32m+[m				[32melse if (cruzaVentaACompra)

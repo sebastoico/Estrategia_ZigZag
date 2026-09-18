@@ -55,6 +55,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[Display(Name = "Velas para cancelar orden", Order = 4, GroupName = "Parámetros")]
 		public int VelasParaCancelarOrden { get; set; }
 
+		[NinjaScriptProperty]
+		[Range(0.01, 100.0)]
+		[Display(Name = "% de la cuenta por operación", Order = 5, GroupName = "Parámetros")]
+		public double PorcentajeCuentaPorOperacion { get; set; }
+
 		// Estructura interna que describe el rango de un pivote y su zona visual asociada.
 		private class AreaPivote
 		{
@@ -118,6 +123,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				HoraFinDibujo = new TimeSpan(16, 0, 0);
 				RelacionTakeProfit = 1.0;
 				VelasParaCancelarOrden = 5;
+				PorcentajeCuentaPorOperacion = 1.0;
 			}
 			else if (State == State.DataLoaded)
 			{
@@ -325,6 +331,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		private void GestionarCrucesDeAreas()
 		{
+			if (!EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
+			{
+				CancelarOrdenPendiente();
+				return;
+			}
+
 			if (CurrentBar == 0 || cierreAnterior == 0)
 				return;
 
@@ -352,6 +364,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		private void EnviarOrdenDeCompra()
 		{
+			if (!EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
+				return;
+
 			double precioStop;
 			// El stop usa el mínimo más reciente que ZigZag todavía tiene pendiente de confirmar.
 			if (nombreEntradaPendiente != null || !ObtenerUltimoPivotePorConfirmar(false, out precioStop))
@@ -366,17 +381,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (TargetAtraviesaZonaActiva(precioEntrada, precioTarget))
 				return;
 
+			int cantidad = CalcularCantidadContratos(precioEntrada, precioStop);
+			if (cantidad <= 0)
+				return;
+
 			string nombre = "Compra_" + CurrentBar;
 			SetStopLoss(nombre, CalculationMode.Price, precioStop, false);
 			SetProfitTarget(nombre, CalculationMode.Price, precioTarget);
 			DibujarRiskReward(nombre, precioEntrada, precioStop);
 			nombreEntradaPendiente = nombre;
 			barraDeEntradaPendiente = CurrentBar;
-			EnterLongStopMarket(0, true, DefaultQuantity, precioEntrada, nombre);
+			EnterLongStopMarket(0, true, cantidad, precioEntrada, nombre);
 		}
 
 		private void EnviarOrdenDeVenta()
 		{
+			if (!EstaDentroDeVentanaDeDibujo(Time[0].TimeOfDay))
+				return;
+
 			double precioStop;
 			// El stop usa el máximo más reciente que ZigZag todavía tiene pendiente de confirmar.
 			if (nombreEntradaPendiente != null || !ObtenerUltimoPivotePorConfirmar(true, out precioStop))
@@ -391,13 +413,36 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (TargetAtraviesaZonaActiva(precioEntrada, precioTarget))
 				return;
 
+			int cantidad = CalcularCantidadContratos(precioEntrada, precioStop);
+			if (cantidad <= 0)
+				return;
+
 			string nombre = "Venta_" + CurrentBar;
 			SetStopLoss(nombre, CalculationMode.Price, precioStop, false);
 			SetProfitTarget(nombre, CalculationMode.Price, precioTarget);
 			DibujarRiskReward(nombre, precioEntrada, precioStop);
 			nombreEntradaPendiente = nombre;
 			barraDeEntradaPendiente = CurrentBar;
-			EnterShortStopMarket(0, true, DefaultQuantity, precioEntrada, nombre);
+			EnterShortStopMarket(0, true, cantidad, precioEntrada, nombre);
+		}
+
+		private int CalcularCantidadContratos(double precioEntrada, double precioStop)
+		{
+			if (Instrument == null || Account == null || PorcentajeCuentaPorOperacion <= 0)
+				return DefaultQuantity;
+
+			Currency monedaCuenta = Instrument.MasterInstrument.Currency;
+			double valorCuenta = Account.Get(AccountItem.NetLiquidation, monedaCuenta);
+			if (valorCuenta <= 0)
+				valorCuenta = Account.Get(AccountItem.CashValue, monedaCuenta);
+
+			double riesgoEnDolares = Math.Abs(precioEntrada - precioStop) * Instrument.MasterInstrument.PointValue;
+			if (valorCuenta <= 0 || riesgoEnDolares <= 0)
+				return DefaultQuantity;
+
+			double riesgoObjetivo = valorCuenta * (PorcentajeCuentaPorOperacion / 100.0);
+			double contratos = riesgoObjetivo / riesgoEnDolares;
+			return Math.Max(1, (int)Math.Floor(contratos));
 		}
 
 		private bool TargetAtraviesaZonaActiva(double precioEntrada, double precioTarget)
